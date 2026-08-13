@@ -87,6 +87,22 @@ ul{line-height:1.8}
 .overall-progress-bar{height:10px;background:#e8eef7;border-radius:99px;overflow:hidden;margin-top:9px}
 .overall-progress-bar i{display:block;height:100%;width:0;background:#2358c4}
 
+
+/* LiterasiKu V8: materi, AI tutor, dan respons suara */
+.detail-material{background:#fff;border:1px solid #e3ebf7;border-radius:20px;padding:24px;margin-top:16px;line-height:1.75}
+.detail-material h2,.detail-material h3{margin-top:0}
+.detail-material .material-paragraph{margin:0 0 14px;color:#314b69}
+.key-points{background:#f3f8ff;border-radius:14px;padding:16px 20px;margin:18px 0}
+.key-points li{margin:7px 0}
+.ai-tutor{margin-top:20px;border:1px solid #d9e8ff;border-radius:18px;background:#f8fbff;padding:18px}
+.ai-tutor .ai-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.ai-answer{background:#fff;border-radius:12px;padding:14px;min-height:48px;line-height:1.65}
+.voice-box{border:1px solid #e0e7ef;border-radius:16px;padding:16px;margin-top:14px;background:#fbfdff}
+.voice-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.voice-status{font-size:14px;color:#61738a;margin-top:8px}
+.voice-player{width:100%;margin-top:10px}
+.ai-badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#eaf3ff;color:#2563a8;font-size:12px;font-weight:700}
+
 </style>
 </head>
 <body>
@@ -379,7 +395,7 @@ function renderCards(level){
 function openCard(id){
  current=DATA.find(c=>c.id===id);
  if(!current) return;
- qi=0; score=0; answered=false;
+ qi=0; score=0; answered=false; window.currentVoiceBlob=null;
  document.getElementById('lessonBadge').textContent=current.group;
  renderMaterial();
  show('lesson');
@@ -393,39 +409,47 @@ function renderMaterial(){
  const group=current.group.toLowerCase();
  const img=(group==='sd'?LEVEL_IMG.sd:group==='smp'?LEVEL_IMG.smp:group==='sma'?LEVEL_IMG.sma:LEVEL_IMG.smp);
  const m=MATERIAL_GUIDE[current.id] || {materi:current.title,tujuan:current.desc,isi:[current.desc],contoh:"Pelajari contoh pada latihan."};
+ const detail=(typeof DETAIL_GUIDE!=='undefined' ? DETAIL_GUIDE[current.id] : null);
  document.getElementById('progress').style.width='0%';
  document.getElementById('lessonTop').innerHTML=
    '<button type="button" class="btn secondary" onclick="backCards()">← Kembali ke daftar materi</button>'+
    '<h1>'+current.title+'</h1>'+
    '<p class="muted">'+current.desc+'</p>'+
    '<img class="material-image" src="'+img+'" alt="Ilustrasi pembelajaran">';
- const list=m.isi.map(x=>'<li>'+x+'</li>').join('');
+ const explanation=(detail && detail.explanation ? detail.explanation : [m.tujuan].concat(m.isi||[]));
+ const paras=explanation.map(x=>'<p class="material-paragraph">'+x+'</p>').join('');
+ const points=(m.isi||[]).map(x=>'<li>'+x+'</li>').join('');
  let storyHtml='';
  if(group==='sd'){
    const stories=SD_STORY_BANK[current.id]||[];
-   storyHtml='<div class="sd-story"><h3>📖 Contoh Cerita Bergambar</h3>';
+   storyHtml='<div class="sd-story"><h3>📖 Cerita dan Ilustrasi</h3>';
    if(stories.length){
-     stories.forEach((s,idx)=>{
-       storyHtml+='<h3>'+s.title+'</h3>'+
-         '<img src="'+s.image+'" alt="'+s.caption+'">'+
-         '<div class="story-caption">'+s.caption+'</div>'+
-         '<p>'+s.text+'</p>';
+     stories.forEach(s=>{
+       storyHtml+='<h3>'+s.title+'</h3><img src="'+s.image+'" alt="'+s.caption+'"><div class="story-caption">'+s.caption+'</div><p>'+s.text+'</p>';
      });
-   }else{
-     storyHtml+='<p>Gunakan cerita dan ilustrasi yang diberikan untuk memahami materi. Soal akan menggunakan beberapa cerita, bukan satu cerita saja.</p>';
-   }
+   }else storyHtml+='<p>Gunakan cerita dan ilustrasi yang tersedia sebagai contoh penerapan materi.</p>';
    storyHtml+='</div>';
  }
+ const aiPanel='<div class="ai-tutor">'+
+   '<span class="ai-badge">🤖 Asisten Belajar LiterasiKu</span>'+
+   '<h3>Butuh bantuan memahami materi?</h3>'+
+   '<p class="muted">Pilih bantuan yang kamu perlukan sebelum mengerjakan kuis.</p>'+
+   '<div class="ai-actions">'+
+   '<button type="button" class="btn secondary" onclick="aiExplain()">Jelaskan dengan bahasa sederhana</button>'+
+   '<button type="button" class="btn secondary" onclick="aiExample()">Berikan contoh</button>'+
+   '<button type="button" class="btn secondary" onclick="aiKeyPoints()">Tunjukkan inti materi</button>'+
+   '</div><div id="aiAnswer" class="ai-answer">Asisten akan membantu kamu memahami materi tanpa langsung memberikan jawaban kuis.</div></div>';
  document.getElementById('questionArea').innerHTML=
-   '<div class="material-box">'+
-   '<span class="badge">📚 MATERI</span>'+
+   '<div class="detail-material">'+
+   '<span class="badge">📚 MATERI PEMBELAJARAN</span>'+
    '<h2>'+m.materi+'</h2>'+
    '<h3>Tujuan Pembelajaran</h3><p>'+m.tujuan+'</p>'+
-   '<h3>Materi Inti</h3><ul>'+list+'</ul>'+
+   '<h3>Penjelasan Materi</h3>'+paras+
+   '<div class="key-points"><h3>🔑 Inti yang Perlu Diingat</h3><ul>'+points+'</ul></div>'+
    '<h3>Contoh</h3><p>'+m.contoh+'</p>'+
-   storyHtml+
-   '<p class="small-note">Setelah memahami materi, lanjutkan ke latihan. Soal akan dibuat berdasarkan bacaan dan ilustrasi yang relevan.</p>'+
-   '<div class="material-actions"><button type="button" class="btn" onclick="startQuestions()">Mulai Latihan →</button></div>'+
+   storyHtml+aiPanel+
+   '<p class="small-note">Setelah memahami penjelasan, contoh, dan cerita, kamu dapat melanjutkan ke latihan.</p>'+
+   '<div class="material-actions"><button type="button" class="btn" onclick="startQuestions()">Mulai Kuis →</button></div>'+
    '</div>';
 }
 function startQuestions(){
@@ -457,41 +481,66 @@ function renderQuestion(){
  const group=current.group.toLowerCase();
  const img=(group==='sd'?LEVEL_IMG.sd:group==='smp'?LEVEL_IMG.smp:group==='sma'?LEVEL_IMG.sma:LEVEL_IMG.smp);
  document.getElementById('lessonTop').innerHTML=
-   '<div class="lesson-nav">'+
-   '<button type="button" class="btn secondary" onclick="renderMaterial()">← Kembali ke materi</button>'+
-   '<span class="badge">Latihan '+(qi+1)+' / '+(current._practiceQuestions||current.questions).length+'</span>'+
-   '</div>'+
+   '<div class="lesson-nav"><button type="button" class="btn secondary" onclick="renderMaterial()">← Kembali ke materi</button>'+
+   '<span class="badge">Latihan '+(qi+1)+' / '+questionList.length+'</span></div>'+
    '<h1>'+current.title+'</h1><p class="muted">'+current.desc+'</p>'+
    '<img class="material-image" src="'+img+'" alt="Ilustrasi pembelajaran">';
- document.getElementById('progress').style.width=((qi)/(current._practiceQuestions||current.questions).length*100)+'%';
+ document.getElementById('progress').style.width=((qi)/questionList.length*100)+'%';
  const area=document.getElementById('questionArea');
- let body='<div class="qmeta">Soal '+(qi+1)+' dari '+(current._practiceQuestions||current.questions).length+' • '+q.title+'</div>'+
-   '<div class="reading"><b>Materi yang berkaitan:</b><br>'+q.text+'</div>'+
+ let body='<div class="qmeta">Soal '+(qi+1)+' dari '+questionList.length+' • '+q.title+'</div>'+
+   '<div class="reading"><b>Bacaan atau konteks:</b><br>'+q.text+'</div>'+
    '<h2>'+q.q+'</h2>';
  if(q.type==='pg'){
    body+=q.opts.map((o,i)=>'<label class="option"><input type="radio" name="opt" value="'+encodeURIComponent(o)+'"> '+String.fromCharCode(65+i)+'. '+o+'</label>').join('');
  }else{
-   body+='<textarea id="openAnswer" placeholder="'+(q.type==='voice'?'Tuliskan dahulu jawaban yang akan kamu sampaikan secara lisan.':'Tuliskan jawabanmu dengan kalimat yang jelas, baku, dan sesuai dengan bacaan.')+'"></textarea>';
+   body+='<textarea id="openAnswer" placeholder="Tuliskan jawaban dengan kalimat yang jelas, baku, dan sesuai dengan bacaan."></textarea>'+
+   '<div class="voice-box"><b>🎙️ Respons suara</b><p class="muted">Kamu dapat merekam jawaban secara lisan. Rekaman hanya digunakan sebagai respons latihan di halaman ini.</p>'+
+   '<div class="voice-controls"><button type="button" class="btn secondary" id="recordBtn" onclick="toggleVoice()">🎙️ Mulai Rekam</button><button type="button" class="btn secondary" id="stopBtn" onclick="stopVoice()" disabled>⏹ Berhenti</button></div>'+
+   '<div id="voiceStatus" class="voice-status">Belum ada rekaman.</div><audio id="voicePlayer" class="voice-player" controls style="display:none"></audio></div>';
  }
- body+='<div id="feedback" class="feedback"></div>'+
-   '<div id="hintBox" class="notice hidden" style="margin-top:12px"></div>'+
-   '<div class="actions">'+
-   '<button type="button" class="btn secondary" onclick="hint()">💡 Petunjuk</button>'+
-   '<button type="button" class="btn" id="checkBtn" onclick="checkAnswer()">Periksa Jawaban</button>'+
-   '</div>';
+ body+='<div class="ai-tutor"><span class="ai-badge">🤖 Bantuan Belajar</span><div class="ai-actions">'+
+   '<button type="button" class="btn secondary" onclick="aiQuestionHelp()">💡 Bantu saya memahami soal</button>'+
+   '<button type="button" class="btn secondary" onclick="hint()">Petunjuk</button></div>'+
+   '<div id="aiQuestionAnswer" class="ai-answer">Bantuan akan memberi arahan, bukan langsung memberikan jawaban.</div></div>'+
+   '<div id="feedback" class="feedback"></div><div id="hintBox" class="notice hidden" style="margin-top:12px"></div>'+
+   '<div class="actions"><button type="button" class="btn" id="checkBtn" onclick="checkAnswer()">Periksa Jawaban</button></div>';
  area.innerHTML=body;
 }
+
 function hint(){
- const q=current.questions[qi], box=document.getElementById('hintBox');
+ const list=current._practiceQuestions||current.questions, q=list[qi], box=document.getElementById('hintBox');
  box.classList.remove('hidden');
+ box.textContent=q.hint || (q.type==='pg'
+   ? '💡 Petunjuk: baca kembali bacaan, tentukan informasi yang ditanyakan, lalu bandingkan setiap pilihan dengan isi bacaan.'
+   : '💡 Petunjuk: tentukan gagasan utama jawaban, kemudian berikan alasan atau bukti yang sesuai dengan bacaan.');
+}
+function checkAnswer(){
+ if(answered) return;
+ const list=current._practiceQuestions||current.questions, q=list[qi], fb=document.getElementById('feedback');
  if(q.type==='pg'){
-   box.textContent='💡 Petunjuk: baca kembali materi dan cari informasi yang menjadi dasar jawaban. Bandingkan setiap pilihan dengan isi bacaan, bukan dengan panjang pilihan.';
- }else if(q.type==='essay'){
-   box.textContent='💡 Petunjuk: tentukan gagasan utama terlebih dahulu, kemudian tuliskan alasan atau bukti yang sesuai dengan bacaan menggunakan kalimat yang jelas dan baku.';
+   const pick=document.querySelector('input[name="opt"]:checked');
+   if(!pick){fb.textContent='Pilih salah satu jawaban terlebih dahulu.';fb.className='feedback bad';return}
+   const ans=decodeURIComponent(pick.value);
+   if(ans===q.a){
+     answered=true; score++; fb.textContent='✅ Jawaban benar. Jawaban sesuai dengan materi dan pertanyaan.'; fb.className='feedback good';
+     document.querySelectorAll('input').forEach(x=>x.disabled=true);
+     document.getElementById('checkBtn').outerHTML='<button type="button" class="btn" onclick="nextQuestion()">'+(qi===list.length-1?'Lihat Hasil →':'Soal Berikutnya →')+'</button>';
+   }else{
+     fb.textContent='❌ Jawaban belum tepat. Gunakan petunjuk, lalu coba kembali.'; fb.className='feedback bad'; hint();
+   }
  }else{
-   box.textContent='💡 Petunjuk: sampaikan gagasan utama secara berurutan. Gunakan kosakata baku dan tetap sesuai dengan isi bacaan.';
+   const v=document.getElementById('openAnswer').value.trim();
+   const hasVoice=!!window.currentVoiceBlob;
+   if(!v && !hasVoice){fb.textContent='Tuliskan jawaban atau rekam respons suara terlebih dahulu.';fb.className='feedback bad';return}
+   answered=true; score++;
+   fb.textContent='✅ Respons tersimpan sebagai latihan '+(hasVoice?'lisan dan ':'')+'uraian.'; fb.className='feedback good';
+   if(document.getElementById('openAnswer')) document.getElementById('openAnswer').disabled=true;
+   if(document.getElementById('recordBtn')) document.getElementById('recordBtn').disabled=true;
+   if(document.getElementById('stopBtn')) document.getElementById('stopBtn').disabled=true;
+   document.getElementById('checkBtn').outerHTML='<button type="button" class="btn" onclick="nextQuestion()">'+(qi===list.length-1?'Lihat Hasil →':'Soal Berikutnya →')+'</button>';
  }
 }
+
 function checkAnswer(){
  if(answered) return;
  const q=current.questions[qi], fb=document.getElementById('feedback');
@@ -518,6 +567,59 @@ function checkAnswer(){
    document.getElementById('checkBtn').outerHTML='<button type="button" class="btn" onclick="nextQuestion()">'+(qi===(current._practiceQuestions||current.questions).length-1?'Lihat Hasil →':'Soal Berikutnya →')+'</button>';
  }
 }
+
+function aiTextForQuestion(){
+ const list=current._practiceQuestions||current.questions, q=list[qi];
+ return 'Soal ini meminta kamu memahami bacaan terlebih dahulu. Garisbawahi kata atau peristiwa yang paling berkaitan dengan pertanyaan, lalu jelaskan hubungan keduanya dengan bahasamu sendiri. Jangan mencari jawaban hanya dari pilihan yang terlihat paling panjang.';
+}
+function aiQuestionHelp(){
+ const box=document.getElementById('aiQuestionAnswer');
+ if(box) box.textContent=aiTextForQuestion();
+}
+function aiExplain(){
+ const box=document.getElementById('aiAnswer'), m=MATERIAL_GUIDE[current.id];
+ if(box) box.textContent=(m&&m.tujuan?m.tujuan+' ': '')+'Baca penjelasan dari awal, kemudian perhatikan contoh. Setelah itu, coba jelaskan kembali inti materi dengan kata-katamu sendiri.';
+}
+function aiExample(){
+ const box=document.getElementById('aiAnswer'), m=MATERIAL_GUIDE[current.id];
+ if(box) box.textContent=m&&m.contoh ? 'Contoh dari materi: '+m.contoh : 'Perhatikan contoh pada bacaan dan cari hubungan antara gagasan utama, informasi, dan pertanyaan.';
+}
+function aiKeyPoints(){
+ const box=document.getElementById('aiAnswer'), m=MATERIAL_GUIDE[current.id];
+ if(box) box.textContent=m&&m.isi ? 'Inti materi: '+m.isi.join(' • ') : 'Baca bagian “Inti yang Perlu Diingat” pada materi.';
+}
+let voiceRecorder=null, voiceChunks=[];
+async function toggleVoice(){
+ const status=document.getElementById('voiceStatus'), recordBtn=document.getElementById('recordBtn'), stopBtn=document.getElementById('stopBtn');
+ try{
+   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('not-supported');
+   const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+   voiceChunks=[];
+   voiceRecorder=new MediaRecorder(stream);
+   voiceRecorder.ondataavailable=e=>{if(e.data.size) voiceChunks.push(e.data)};
+   voiceRecorder.onstop=()=>{
+     stream.getTracks().forEach(t=>t.stop());
+     window.currentVoiceBlob=new Blob(voiceChunks,{type:voiceRecorder.mimeType||'audio/webm'});
+     const url=URL.createObjectURL(window.currentVoiceBlob);
+     const player=document.getElementById('voicePlayer');
+     if(player){player.src=url;player.style.display='block'}
+     if(status) status.textContent='✅ Rekaman siap. Kamu dapat memutarnya sebelum mengirim jawaban.';
+   };
+   voiceRecorder.start();
+   if(recordBtn) recordBtn.disabled=true;
+   if(stopBtn) stopBtn.disabled=false;
+   if(status) status.textContent='🔴 Sedang merekam... Sampaikan jawabanmu dengan jelas.';
+ }catch(e){
+   if(status) status.textContent='Perangkat atau browser tidak mengizinkan akses mikrofon. Jika diminta, pilih “Izinkan”.';
+ }
+}
+function stopVoice(){
+ if(voiceRecorder && voiceRecorder.state!=='inactive') voiceRecorder.stop();
+ const recordBtn=document.getElementById('recordBtn'), stopBtn=document.getElementById('stopBtn');
+ if(recordBtn) recordBtn.disabled=false;
+ if(stopBtn) stopBtn.disabled=true;
+}
+
 function nextQuestion(){
  const list=current._practiceQuestions||current.questions;
  if(qi < list.length-1){
@@ -620,7 +722,6 @@ function renderCards(level){
 
 function renderMaterial(){
   const group=current.group.toLowerCase();
-  const img=(group==='sd'?LEVEL_IMG.sd:group==='smp'?LEVEL_IMG.smp:group==='sma'?LEVEL_IMG.sma:LEVEL_IMG.smp);
   const base=MATERIAL_GUIDE[current.id] || {materi:current.title,tujuan:current.desc,isi:[current.desc],contoh:"Pelajari contoh pada latihan."};
   const d=DETAIL_GUIDE[current.id] || {title:base.materi,explanation:[base.tujuan,base.isi.join(' '),base.contoh]};
   setCardProgress(current.id,Math.max(cardProgress(current.id),5),false);
@@ -629,29 +730,19 @@ function renderMaterial(){
     '<button type="button" class="btn secondary" onclick="backCards()">← Kembali ke daftar materi</button>'+
     '<h1>'+current.title+'</h1>'+
     '<p class="muted">'+current.desc+'</p>'+
-    '<img class="material-image" src="'+img+'" alt="Ilustrasi pembelajaran '+group+'">';
-
+    ((group==='sd'&&current.id==='sd1')?'<img class="material-image" src="'+LEVEL_IMG.sd+'" alt="Ilustrasi pembelajaran SD kelas 1">':'');
   let explain='<div class="material-explain">';
-  d.explanation.forEach((p,i)=>{ explain+='<p>'+p+'</p>'; });
+  d.explanation.forEach(p=>{explain+='<p>'+p+'</p>';});
   explain+='</div>';
-
   let storyHtml='';
-  if(group==='sd'){
+  if(group==='sd'&&current.id==='sd1'){
     const stories=SD_STORY_BANK[current.id]||[];
     storyHtml='<div class="sd-story"><h3>📖 Cerita dan Ilustrasi</h3>';
-    if(stories.length){
-      stories.forEach(s=>{
-        storyHtml+='<h3>'+s.title+'</h3><img src="'+s.image+'" alt="'+s.caption+'"><div class="story-caption">'+s.caption+'</div><p>'+s.text+'</p>';
-      });
-    } else {
-      storyHtml+='<p>Gunakan cerita dan ilustrasi yang tersedia untuk memahami materi sebelum mengerjakan latihan.</p>';
-    }
+    stories.forEach(st=>{storyHtml+='<h3>'+st.title+'</h3><img src="'+st.image+'" alt="'+st.caption+'"><div class="story-caption">'+st.caption+'</div><p>'+st.text+'</p>';});
     storyHtml+='</div>';
   }
-
   document.getElementById('questionArea').innerHTML=
-    '<div class="material-box">'+
-    '<span class="badge">📚 MATERI PEMBELAJARAN</span>'+
+    '<div class="material-box"><span class="badge">📚 MATERI PEMBELAJARAN</span>'+
     '<h2>'+d.title+'</h2>'+
     '<h3>Tujuan Pembelajaran</h3><p>'+base.tujuan+'</p>'+
     '<div class="learning-summary"><h3>Penjelasan Materi</h3>'+explain+'</div>'+
@@ -659,10 +750,10 @@ function renderMaterial(){
     '<div class="learning-summary"><h3>Contoh</h3><p>'+base.contoh+'</p></div>'+
     storyHtml+
     '<p class="small-note">Pelajari penjelasan terlebih dahulu. Setelah memahami materi, tekan tombol di bawah untuk mengerjakan latihan.</p>'+
-    '<div class="material-actions"><button type="button" class="btn" onclick="startQuestions()">Mulai Kuis →</button></div>'+
+    '<div class="material-actions"><button type="button" class="btn" onclick="startQuestions()">Mulai Latihan →</button></div>'+
     '</div>';
+  show('lesson');
 }
-
 function startQuestions(){
   qi=0; score=0; answered=false;
   if(current.group.toLowerCase()==='sd'){
@@ -678,12 +769,10 @@ function renderQuestion(){
   const questionList=current._practiceQuestions||current.questions;
   const q=questionList[qi]; answered=false;
   const group=current.group.toLowerCase();
-  const img=(group==='sd'?LEVEL_IMG.sd:group==='smp'?LEVEL_IMG.smp:group==='sma'?LEVEL_IMG.sma:LEVEL_IMG.smp);
   document.getElementById('lessonTop').innerHTML=
     '<div class="lesson-nav"><button type="button" class="btn secondary" onclick="renderMaterial()">← Kembali ke materi</button>'+
     '<span class="badge">Latihan '+(qi+1)+' / '+questionList.length+'</span></div>'+
-    '<h1>'+current.title+'</h1><p class="muted">'+current.desc+'</p>'+
-    '<img class="material-image" src="'+img+'" alt="Ilustrasi pembelajaran">';
+    '<h1>'+current.title+'</h1><p class="muted">'+current.desc+'</p>';
   const pct=Math.round(10+(qi/questionList.length)*90);
   document.getElementById('progress').style.width=pct+'%';
   setCardProgress(current.id,pct,false);
@@ -692,13 +781,50 @@ function renderQuestion(){
     '<div class="reading"><b>Bacaan:</b><br>'+q.text+'</div>'+
     '<h2>'+q.q+'</h2>';
   if(q.type==='pg') body+=q.opts.map((o,i)=>'<label class="option"><input type="radio" name="opt" value="'+encodeURIComponent(o)+'"> '+String.fromCharCode(65+i)+'. '+o+'</label>').join('');
+  else if(q.type==='voice') body+='<textarea id="openAnswer" placeholder="Tuliskan jawaban sebagai persiapan, lalu gunakan rekaman suara jika tersedia."></textarea>';
   else body+='<textarea id="openAnswer" placeholder="Tuliskan jawaban dengan kalimat yang jelas dan sesuai dengan bacaan."></textarea>';
+
+  // AI hanya ditawarkan pada SMP dan SMA dan hanya setelah siswa menyatakan tidak bisa menjawab.
+  if(group==='smp'||group==='sma'){
+    body+='<div id="questionAIWrap" style="margin-top:16px">'+
+      '<button type="button" class="btn secondary" onclick="showQuestionAI()">🤔 Tidak bisa menjawab soal ini</button>'+
+      '<div id="aiQuestionTutor" class="ai-tutor hidden" style="margin-top:12px">'+
+      '<span class="ai-badge">🤖 Bantuan AI LiterasiKu</span>'+
+      '<p class="muted">AI akan menggunakan materi dan soal yang sedang dipelajari untuk memberikan petunjuk.</p>'+
+      '<button type="button" class="btn" onclick="askQuestionAI()">🤖 Minta Bantuan AI</button>'+
+      '<div id="aiQuestionAnswer" class="ai-answer">Belum ada bantuan AI.</div></div></div>';
+  }
   body+='<div id="feedback" class="feedback"></div><div id="hintBox" class="notice hidden" style="margin-top:12px"></div>'+
     '<div class="actions"><button type="button" class="btn secondary" onclick="hint()">💡 Petunjuk</button>'+
     '<button type="button" class="btn" id="checkBtn" onclick="checkAnswer()">Periksa Jawaban</button></div>';
   area.innerHTML=body;
 }
 
+function showQuestionAI(){
+  const tutor=document.getElementById('aiQuestionTutor');
+  if(!tutor)return;
+  tutor.classList.remove('hidden');
+  tutor.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+async function askQuestionAI(){
+  const box=document.getElementById('aiQuestionAnswer');
+  if(!box)return;
+  const group=(current.group||'').toLowerCase();
+  if(group!=='smp'&&group!=='sma')return;
+  const q=(current._practiceQuestions||current.questions)[qi];
+  const m=MATERIAL_GUIDE[current.id]||{};
+  const d=DETAIL_GUIDE[current.id]||{};
+  const context='Jenjang: '+current.group+'\nMateri: '+(m.materi||current.title)+'\nTujuan: '+(m.tujuan||'')+'\nIsi materi: '+(m.isi||[]).join(' ')+'\nPenjelasan: '+(d.explanation||[]).join(' ')+'\nContoh: '+(m.contoh||'')+'\nSoal: '+(q.q||'')+'\nBacaan: '+(q.text||'');
+  const request='Saya benar-benar tidak bisa menjawab soal ini. Berikan petunjuk bertahap berdasarkan materi yang diberikan. Jangan langsung memberikan jawaban akhir. Untuk pilihan ganda, bantu siswa menemukan jawabannya tanpa menyebut pilihan benar secara langsung. Untuk esai atau berbicara, bantu menentukan poin yang harus disampaikan. Gunakan bahasa Indonesia yang mudah dipahami dan hanya berdasarkan materi platform.';
+  box.textContent='AI sedang membantu...';
+  try{
+    const r=await fetch('/api/bantuan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:request,context})});
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||'AI belum tersedia');
+    box.textContent=data.answer||'Belum ada bantuan AI.';
+  }catch(e){box.textContent='Bantuan AI belum tersambung. Pastikan backend Render LiterasiKu aktif.';}
+}
 function checkAnswer(){
   if(answered) return;
   const list=current._practiceQuestions||current.questions;
